@@ -72,7 +72,7 @@ However, until the last moment, the program remained integrated with "Linuxcnc".
 This circumstance did not allow a wide range of users to apply it to their needs.
 Current version is designed to eliminate this small flaw.
 Now you can use it on Windows and Linux as a stand-alone program.  
-You should use **Python 2.7** with **numpy**, **pillow** and Tkinter packages.
+This is modified to work with python 3, tested with **Python 3.12.3** with **numpy**, **pillow**, and **Tkinter** packages.
 
 # License
 image-to-gcode is free software; you can redistribute it and/or modify
@@ -95,3 +95,5 @@ image-to-gcode.py is Copyright (C) 2013 Harmonist
 cnc-club.ru  
 image-to-gcode.py is Copyright (C) 2018 Yaroslav Vlasov  
 ysvlasov@yandex.ru  
+modified for python 3 (C) 2025 Daniel Marks
+profdc9@gmail.com

@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/python3
 
 ## image-to-gcode is free software; you can redistribute it and/or modify
 ## it under the terms of the GNU General Public License as published by the
@@ -20,7 +20,7 @@
 ## image-to-gcode.py is Copyright (C) 2018 Yaroslav Vlasov
 ## ysvlasov@yandex.ru
 
-VersionI2G = "3.8.9"
+VersionI2G = "3.8.9-python3"
 
 printToFile = True
 generateGcode = True #for debug
@@ -40,7 +40,7 @@ if (os.name != "nt"):
 	platformWin = False
 
 import gettext;
-gettext.install("linuxcnc", localedir=os.path.join(BASE, "share", "locale"), unicode=True)
+gettext.install("linuxcnc", localedir=os.path.join(BASE, "share", "locale"))
 
 try:
     from PIL import Image
@@ -65,13 +65,16 @@ import operator
 
 import datetime
 
-try:
-    import Tkinter
-except ImportError:
-	print 'Tkinter are not installed! for linux use: "sudo apt-get install python-tk"'
-	raw_input ("Press enter to exit ")
-	importingTkError = True
-	importingError = True
+import tkinter as Tkinter
+importingTkError = False
+importingError = False
+# try:
+#    import tkinter
+# except ImportError:
+# 	print 'Tkinter are not installed! for linux use: "sudo apt-get install python-tk"'
+#	raw_input ("Press enter to exit ")
+#	importingTkError = True
+#	importingError = True
  
 if ((importingError) and not(importingTkError)):
     window = Tkinter.Tk()
@@ -86,6 +89,9 @@ epsilon16 = 1e-16
 is_ddd1 = True
 roughing_depth_delta = 0.2   # ~20% 
 prn_detail = 1  #Print detail (10)
+
+def cmp(a, b):
+    return (a > b) - (a < b) 
 
 def ball_tool(r,rad):
     if r == rad: return rad
@@ -120,16 +126,16 @@ def tool_info(tool_type=0, wdia=0, wdia2=-9999, degr=60, units=0):
         unitsStr = "inch"
     else:
         unitsStr = "mm"
-    print "( Tool info: )"
+    print("( Tool info: )")
     if wdia2 > wdia and degr > 0 and degr < 180:
-        print "( Tool type: Cone {0} )".format(toolTypeStr[tool_type])
-        print "( Tool diameter: {0}{1} )".format(wdia2,unitsStr)
-        print "( Tool tip diameter: {0}{1} )".format(wdia,unitsStr)
-        print "( Tool angle: {0}degree )".format(degr)
-        print "( Tool conical segment approx length: {0:.2f}{1} )".format(((wdia2/2)/tan(radians(degr/2)))-((wdia/2)/tan(radians(degr/2))),unitsStr)
+        print("( Tool type: Cone {0} )".format(toolTypeStr[tool_type]))
+        print("( Tool diameter: {0}{1} )".format(wdia2,unitsStr))
+        print("( Tool tip diameter: {0}{1} )".format(wdia,unitsStr))
+        print("( Tool angle: {0}degree )".format(degr))
+        print("( Tool conical segment approx length: {0:.2f}{1} )".format(((wdia2/2)/tan(radians(degr/2)))-((wdia/2)/tan(radians(degr/2))),unitsStr))
     else:
-        print "( Tool type: {0} )".format(toolTypeStr[tool_type])
-        print "( Tool diameter: {0}{1} )".format(wdia,unitsStr)
+        print("( Tool type: {0} )".format(toolTypeStr[tool_type]))
+        print("( Tool diameter: {0}{1} )".format(wdia,unitsStr))
 
 def make_tool_shape(f, wdia, resp, is_offset= False, tool_type=0, wdia2=-9999, degr=60, units=0):
     res = 1. / resp
@@ -154,13 +160,13 @@ def make_tool_shape(f, wdia, resp, is_offset= False, tool_type=0, wdia2=-9999, d
     if is_offset:
         if dia == 1: 
             dia = 2
-            if prn_detail > 0: print "(Warning: offset[{0}] <= pixel size[{1}]! Use function correct_offset!)".format((wdia/2),resp)
+            if prn_detail > 0: print("(Warning: offset[{0}] <= pixel size[{1}]! Use function correct_offset!)".format((wdia/2),resp))
             #this not enaf! Use function correct_offset - for correct offset!
             wdia = resp*2
     
     if always_an_odd and not dia % 2: dia = dia +1
 
-    if is_offset and prn_detail > 0: print "(Real offset = {0} dia: {1} pixels)".format((dia*resp/2),dia)
+    if is_offset and prn_detail > 0: print("(Real offset = {0} dia: {1} pixels)".format((dia*resp/2),dia))
 
     wrad = wdia/2.
     wrad0= wrad
@@ -172,8 +178,8 @@ def make_tool_shape(f, wdia, resp, is_offset= False, tool_type=0, wdia2=-9999, d
         if tool_type == 0:
             wrad0 = cos(radians(90-degr2))*wrad
 
-            if wrad0 > wrad or wrad0 == 0 and prn_detail > -1: print "( Error tool2(2): ",wrad0, " )"
-            if prn_detail > 1: print "( Radius of Ball End: {0:.2f} )".format(wrad0)
+            if wrad0 > wrad or wrad0 == 0 and prn_detail > -1: print("( Error tool2(2): ",wrad0, " )")
+            if prn_detail > 1: print("( Radius of Ball End: {0:.2f} )".format(wrad0))
 
         if   tool_type == 0: h0 = (wrad - sin(radians(90-degr2))*wrad) / sin(radians(90-degr2))
         elif tool_type == 1: h0 = wrad/tan(radians(degr/2))
@@ -193,7 +199,7 @@ def make_tool_shape(f, wdia, resp, is_offset= False, tool_type=0, wdia2=-9999, d
         wrad2 = -plus_inf
 
     #n = numarray.array([[plus_inf] * dia] * dia, type="Float32")
-    n = numarray.array([[plus_inf] * dia] * dia, "Float32")
+    n = numarray.array([[plus_inf] * dia] * dia, "float32")
     hdia = dia / 2.
     #hdia = int(hdia)
     l = []
@@ -204,7 +210,7 @@ def make_tool_shape(f, wdia, resp, is_offset= False, tool_type=0, wdia2=-9999, d
                 z = f(0, wrad)
                 l.append(z)
                 if z != 0.: 
-                    if prn_detail > -1: print "( Error(0) tool center mast be = 0, bat z=",z, " )"
+                    if prn_detail > -1: print("( Error(0) tool center mast be = 0, bat z=",z, " )")
                     z = 0 
                 n[x,y] = z  # z = 0 - mast be
             else:
@@ -257,21 +263,21 @@ def make_tool_shape(f, wdia, resp, is_offset= False, tool_type=0, wdia2=-9999, d
                     z = f(r, wrad)
                     l.append(z)
                     n[x,y] = z
-                    if z < 0. and prn_detail > -1: print "( tool error 1: r=",r," x=",x," y=",y," hight<0 hight= ",z,", mast be >= 0 )"
+                    if z < 0. and prn_detail > -1: print("( tool error 1: r=",r," x=",x," y=",y," hight<0 hight= ",z,", mast be >= 0 )")
                     #if z > 300: print(" error 1: tool hight1: r=",r," x=",x," y=",y," hight= ",z," is too big!")
                 elif r < wrad2:
                     z = f2(r,wrad2) - h0
                     l.append(z)
                     n[x,y] = z
-                    if z < 0. and prn_detail > -1: print "( tool error 2: r=",r," x=",x," y=",y," z<0 z= ",z,", mast be >= 0 )"
+                    if z < 0. and prn_detail > -1: print("( tool error 2: r=",r," x=",x," y=",y," z<0 z= ",z,", mast be >= 0 )")
                     #if z > 300: print(" error 2: tool hight1: r=",r," x=",x," y=",y," hight= ",z," is too big!")
 
-    if n.min() != 0. and prn_detail > -1: print "( error(0): tool.minimum = ",n.min(),", mast be == 0 )"
+    if n.min() != 0. and prn_detail > -1: print("( error(0): tool.minimum = ",n.min(),", mast be == 0 )")
     return n
 
 def correct_offset(offset, resp):
     if offset > epsilon and offset < resp: 
-        if prn_detail > -1: print "(Warning: offset[{0}] <= pixel size[{1}]. New offset = {1} units)".format(offset,resp)
+        if prn_detail > -1: print("(Warning: offset[{0}] <= pixel size[{1}]. New offset = {1} units)".format(offset,resp))
         offset = resp
     return offset
 
@@ -322,26 +328,26 @@ def optim_tool_shape(n,hig,offset,tolerance):
         #@ dia = 3, line2 = 1
         line2 = line2 + 1
 
-        if prn_detail > 1: print "( tool opitimize - dia = ",dia," lines:)"
-        if prn_detail > 1: print "( cut lines[left  and up  ]: ",lineLF,")"
-        if prn_detail > 1: print "( cut lines[right and down]: ",(dia-line2),")"
+        if prn_detail > 1: print("( tool opitimize - dia = ",dia," lines:)")
+        if prn_detail > 1: print("( cut lines[left  and up  ]: ",lineLF,")")
+        if prn_detail > 1: print("( cut lines[right and down]: ",(dia-line2),")")
 
         if line2 < dia:
             dia2 = line2 - lineLF
-            n2 = numarray.array([[plus_inf] * dia2] * dia2, "Float32")
+            n2 = numarray.array([[plus_inf] * dia2] * dia2, "float32")
             d2range = range(lineLF,line2)
             for x in d2range:
                 for y in d2range:
                     n2[x-lineLF,y-lineLF] = n[x,y]
         else:
             dia2 = dia - lineLF
-            n2 = numarray.array([[plus_inf] * dia2] * dia2, "Float32")
+            n2 = numarray.array([[plus_inf] * dia2] * dia2, "float32")
             d2range = range(lineLF,dia)
             for x in d2range:
                 for y in d2range:
                     n2[x-lineLF,y-lineLF] = n[x,y]
-        if len(n2) == 0 and prn_detail > -1: print "( Error(): ",dia,lineLF,line2," )"
-        if n2.min() <> 0 and prn_detail > -1: print "( Error(): n2=",n2," )"
+        if len(n2) == 0 and prn_detail > -1: print( "( Error(): ",dia,lineLF,line2," )")
+        if n2.min() != 0 and prn_detail > -1: print("( Error(): n2=",n2," )")
         return n2
     else:
         return n
@@ -474,11 +480,11 @@ unitcodes = ['G20', 'G21']
 convert_makers = [ Convert_Scan_Increasing, Convert_Scan_Decreasing, Convert_Scan_Alternating, Convert_Scan_Upmill, Convert_Scan_Downmill ]
 
 def progress(a, b, cstr="FILTER_PROGRESS=%d"):
-    print >> originalStdout, "\rProgress: {0:6.2f}%".format((a*100./b+.5)),
+    print("\rProgress: {0:6.2f}%".format((a*100./b+.5)),file=originalStdout)
     #originalStdout.flush()    
-    if os.environ.has_key("AXIS_PROGRESS_BAR"):
-        print >>sys.stderr, cstr % int(a*100./b+.5)
-        sys.stderr.flush()
+    #if os.environ.has_key("AXIS_PROGRESS_BAR"):
+    #    print(cstr % int(a*100./b+.5),file=sys.stderr)
+    #    sys.stderr.flush()
 
 class Converter:
     def __init__(self,
@@ -524,10 +530,10 @@ class Converter:
         self.MaxBackground_up = (self.image.max()-self.background_border);
         if prn_detail > 0 and self.background_border > .0:
             if self.cut_top_jumper:
-                print "(Background border = {0} units, Background down = {1} units, Background up = {2} units)".format(self.background_border,\
-                    self.MaxBackground_down,self.MaxBackground_up)
+                print("(Background border = {0} units, Background down = {1} units, Background up = {2} units)".format(self.background_border,\
+                    self.MaxBackground_down,self.MaxBackground_up))
             else:
-                print "(Background border = {0} units, Background down = {1} units)".format(self.background_border,self.MaxBackground_down)
+                print("(Background border = {0} units, Background down = {1} units)".format(self.background_border,self.MaxBackground_down))
 
         w, h = self.w, self.h = image.shape
 
@@ -558,7 +564,7 @@ class Converter:
         self.cache_abs = {}
 
         ts = self.ts = tool_shape.shape[0]
-        if prn_detail > 0: print "(Tool shape = {0} pixels)".format(ts)
+        if prn_detail > 0: print("(Tool shape = {0} pixels)".format(ts))
 
         # "-1" - for functions get_dz_dy and get_dz_dx - code "+1"
         self.h1 = h - ts -1
@@ -574,9 +580,9 @@ class Converter:
 
         self.layer = self.layer + 1
         if prn_detail > 0:
-            print "(Layer {0} layer depth {1})".format(self.layer,self.layer_depth)
+            print("(Layer {0} layer depth {1})".format(self.layer,self.layer_depth))
             if printToFile:
-                print >> originalStdout, "Layer {0} layer depth {1} is started, pleas wait...".format(self.layer,self.layer_depth)
+                print("Layer {0} layer depth {1} is started, pleas wait...".format(self.layer,self.layer_depth),file=originalStdout)
 
 
 
@@ -584,7 +590,7 @@ class Converter:
             self.row_mill = False
             self.g.set_plane(19)
             if self.roughing_minus_finishing:
-                if prn_detail > 0: print "(Error(!) This function is not implemented!)"
+                if prn_detail > 0: print("(Error(!) This function is not implemented!)")
 
             elif self.pattern_objectiv:
                 self.mill_objectiv(self.convert_cols, True)
@@ -655,7 +661,7 @@ class Converter:
         self.min_delta_rmf = min_delta_rmf
 
         self.ts = self.tool.shape[0]
-        if prn_detail > 0: print "(Next tool shape = {0} pixels)".format(self.ts)
+        if prn_detail > 0: print("(Next tool shape = {0} pixels)".format(self.ts))
 
         # "-1" - for functions get_dz_dy and get_dz_dx - code "+1"
         self.h1 = self.h - self.ts -1
@@ -674,9 +680,9 @@ class Converter:
             tw, th = rough.shape
             w1 = w + tw
             h1 = h + th
-            nim1 = numarray.zeros((w1, h1), 'Float32') + image.min()
-            nim1[tw/2:tw/2+w, th/2:th/2+h] = image
-            image = numarray.zeros((w,h), "Float32")
+            nim1 = numarray.zeros((w1, h1), 'float32') + image.min()
+            nim1[tw//2:tw//2+w, th//2:th//2+h] = image
+            image = numarray.zeros((w,h), "float32")
             for j in range(0, w):
                 progress(j,w)
                 for i in range(0, h):
@@ -693,17 +699,17 @@ class Converter:
         g.safety()
 
         if prn_detail > 0:
-            print "(Start make g-kod at {0})".format(datetime.datetime.now())
+            print("(Start make g-kod at {0})".format(datetime.datetime.now()))
             if printToFile:
-                print >> originalStdout, "Start make g-kod at {0}, please wait...".format(datetime.datetime.now())
+                print("Start make g-kod at {0}, please wait...".format(datetime.datetime.now()),file=originalStdout)
         if self.safetyheight == 0 and prn_detail > -1: 
-            print "(Warning: safety height = 0! You can give error like: 'Start of arc is the same as end!')"
+            print("(Warning: safety height = 0! You can give error like: 'Start of arc is the same as end!')")
 
 
         if prn_detail > -1 and self.MaxBackground_up <= self.MaxBackground_down:
 
-                print "Error(!): Max background border down[{0}] >= Max background border up[{1}]! G-kode can not be formed.".format(self.MaxBackground_down, self.MaxBackground_up)
-                print "     ...check background_border and image depth!"
+                print("Error(!): Max background border down[{0}] >= Max background border up[{1}]! G-kode can not be formed.".format(self.MaxBackground_down, self.MaxBackground_up))
+                print("     ...check background_border and image depth!")
                 return
 
 
@@ -783,7 +789,7 @@ class Converter:
                 r = r - self.roughing_depth
             if self.layer_depth_prev > m + epsilon:
                 self.layer_depth = m
-                if prn_detail > 0: print "(Layer: {0} previous LD={1} < m[{2}]+epsilon[{3}]={4})".format(self.layer,self.layer_depth,m,epsilon,(m + epsilon))
+                if prn_detail > 0: print("(Layer: {0} previous LD={1} < m[{2}]+epsilon[{3}]={4})".format(self.layer,self.layer_depth,m,epsilon,(m + epsilon)))
                 self.one_pass()
                 self.layer_depth_prev = self.layer_depth    #'layer_depth_prev' need for 'optimize_path'
             self.optimize_path = False
@@ -798,8 +804,8 @@ class Converter:
         self.one_pass()
         g.end()
         timing = "End make at: "+str(datetime.datetime.now().strftime("%d-%m-%Y %H:%M:%S"))+" Total time: "+str((datetime.datetime.now()-self.start_moment))
-        if prn_detail > 0: print "( {0} )".format(timing)
-        print >> originalStdout, "\rProgress: 100% completed.\nSUCCESS!\n\n", timing
+        if prn_detail > 0: print("( {0} )".format(timing))
+        print("\rProgress: 100% completed.\nSUCCESS!\n\n", timing, file=originalStdout)
         
     def get_dz_dy(self, x, y):
         y1 = max(0, y-1)
@@ -850,7 +856,7 @@ class Converter:
         map_tool1 = {}  #numarray.zeros((self.w, self.h), 'Float32') - self.image.min()
 
         ts_roughing = tool_roughing.shape[0]
-        if prn_detail > 0: print "(Previous tool shape: {0} pixels)".format(ts_roughing)
+        if prn_detail > 0: print("(Previous tool shape: {0} pixels)".format(ts_roughing))
 
         if self.row_mill:
             jrange = range(0, self.w - ts_roughing - 1, pixelstep_roughing)
@@ -862,7 +868,7 @@ class Converter:
             ln = self.h - ts_roughing - 1
 
         if (len(jrange) == 0 or len(irange) == 0) and prn_detail > -1:
-            print "(WARNING! Perhaps: previous tool diametr[{0} pixels] is larger then len of image[{1}, {2}]! )".format(ts_roughing,self.w,self.h)
+            print("(WARNING! Perhaps: previous tool diametr[{0} pixels] is larger then len of image[{1}, {2}]! )".format(ts_roughing,self.w,self.h))
 
             
         trange = range(0,ts_roughing)
@@ -891,7 +897,7 @@ class Converter:
                         dt = -self.image[ty,tx] + hhh1 + t
                         #dt = round(dt,16)
 
-                        if dt < -epsilon and prn_detail > -1: print "( delta < -0.00001 ",ty,tx,dt,self.image[ty,tx], hhh1, t," )"
+                        if dt < -epsilon and prn_detail > -1: print("( delta < -0.00001 ",ty,tx,dt,self.image[ty,tx], hhh1, t," )")
                         if dt < .0: dt = .0
                             
                         try:
@@ -900,8 +906,8 @@ class Converter:
                         except KeyError:
                             map_tool1[ty,tx] = dt
 
-        if prn_detail > 0: print "(End make map tool1. Map len: {0}. End at {1})".format(len(map_tool1),datetime.datetime.now())
-        if len(map_tool1) == 0 and prn_detail > -1: print "(WARNING! Map tool1 len: {0}! )".format(len(map_tool1))
+        if prn_detail > 0: print("(End make map tool1. Map len: {0}. End at {1})".format(len(map_tool1),datetime.datetime.now()))
+        if len(map_tool1) == 0 and prn_detail > -1: print("(WARNING! Map tool1 len: {0}! )".format(len(map_tool1)))
 
         return map_tool1
 
@@ -947,7 +953,7 @@ class Converter:
                         #dt = round(dt,16)
                         
                         if dt < -epsilon and prn_detail > -1: 
-                            print "( delta[{0}] < -0.00001 y,x[{1}, {2}] image={3} hhh1={4} tool={5})".format(dt,ty,tx,base_image[ty,tx], hhh1, t)
+                            print("( delta[{0}] < -0.00001 y,x[{1}, {2}] image={3} hhh1={4} tool={5})".format(dt,ty,tx,base_image[ty,tx], hhh1, t))
                             if dt < .0: dt = .0
                         
                         if isinf(self.map_tool2[ty,tx]) or self.map_tool2[ty,tx] > dt: 
@@ -986,16 +992,16 @@ class Converter:
                         except: pass
 
         if prn_detail > 0: 
-            print "(Base min delta 'Roughing Minus Finish': {0} units)".format(self.min_delta_rmf)
-            print "(     Min delta 'Roughing Minus Finish': {0} units)".format(self.map_rmf.min())
+            print("(Base min delta 'Roughing Minus Finish': {0} units)".format(self.min_delta_rmf))
+            print("(     Min delta 'Roughing Minus Finish': {0} units)".format(self.map_rmf.min()))
             if self.map_rmf.min() < self.min_delta_rmf:
-                print "(Warning: Min delta [{0}] < Base min delta[{1}] )".format(self.map_rmf.min(),self.min_delta_rmf)
-            print "(     Max delta 'Roughing Minus Finish': {0} units)".format(self.map_rmf.max())
+                print("(Warning: Min delta [{0}] < Base min delta[{1}] )".format(self.map_rmf.min(),self.min_delta_rmf))
+            print("(     Max delta 'Roughing Minus Finish': {0} units)".format(self.map_rmf.max()))
             if self.map_rmf.max() < self.min_delta_rmf:
-                print "(Error: Max delta [{0}] < Base min delta[{1}] )".format(self.map_rmf.max(),self.min_delta_rmf)
+                print("(Error: Max delta [{0}] < Base min delta[{1}] )".format(self.map_rmf.max(),self.min_delta_rmf))
 
-        if self.map_rmf.max() < 0 and prn_detail > -1: print "(Error() Min RMF: {0} < 0 units)".format(self.map_rmf.max())
-        if prn_detail > 0: print "(End make map rmf at {0})".format(datetime.datetime.now())
+        if self.map_rmf.max() < 0 and prn_detail > -1: print("(Error() Min RMF: {0} < 0 units)".format(self.map_rmf.max()))
+        if prn_detail > 0: print("(End make map rmf at {0})".format(datetime.datetime.now()))
 
         return
 
@@ -1062,8 +1068,8 @@ class Converter:
             #if d_len == 0: P_l = min(self.h1,Pixel_entry_l + 1)
 
             if prn_detail > 1: 
-                print "( GK> Layer: {0} obj: {1} LD[{2}] row: {3} [F{4}, L{5}] [{6}, {7}] )".format(clayer,object_num,\
-                            self.layer_depth,j,Pixel_entry_f,Pixel_entry_l,P_f,P_l) 
+                print("( GK> Layer: {0} obj: {1} LD[{2}] row: {3} [F{4}, L{5}] [{6}, {7}] )".format(clayer,object_num,\
+                            self.layer_depth,j,Pixel_entry_f,Pixel_entry_l,P_f,P_l) )
 
 
             # clean covered
@@ -1089,7 +1095,7 @@ class Converter:
                         for p in points:
                             self.g.cut(*p[1])
                 else:
-                    if prn_detail > -1: print "Error(0) g-kode not make L: {0} [{1}, {2}] !!!".format(clayer,P_f,P_l)
+                    if prn_detail > -1: print("Error(0) g-kode not make L: {0} [{1}, {2}] !!!".format(clayer,P_f,P_l))
             else:
                 #Cols
                 x = (j+self.ts2) * self.pixelsize
@@ -1108,13 +1114,13 @@ class Converter:
                         for p in points:
                             self.g.cut(*p[1])
                 else:
-                    if prn_detail > -1: print"( ",clayer,", Error len(scan) == 0! g-kode not make from ",P_f," to ",P_l," !!!)"
+                    if prn_detail > -1: print("( ",clayer,", Error len(scan) == 0! g-kode not make from ",P_f," to ",P_l," !!!)")
             self.g.flush()
             
         self.g.safety()
         convert_scan.reset()
 
-        if prn_detail > 1: print "(End of object: g.safety, convert_rows.reset )"
+        if prn_detail > 1: print("(End of object: g.safety, convert_rows.reset )")
 
     #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
@@ -1177,11 +1183,11 @@ class Converter:
         # and they must lie in different layers, separated by 'layer_depth'.
         if Curn_D != Prev_D and ((Curn_U and Curn_D) or (Prev_U and Prev_D)):
             if Prev_D: 
-                if prn_detail > 9: print "( ??? [e.0] first border ",Curn_D,Prev_D,Curn_U,Prev_U,t_i,j,hhh3," )"
+                if prn_detail > 9: print("( ??? [e.0] first border ",Curn_D,Prev_D,Curn_U,Prev_U,t_i,j,hhh3," )")
                 verify_prev = False
                 Last_border = True
             elif Curn_D: 
-                if prn_detail > 9: print "(  [e.0] last border ",Curn_D,Prev_D,Curn_U,Prev_U,start,j,hhh1,self.layer_depth,(hhh1 <= self.layer_depth),self.higher_then_layer_depth(hhh1)," )"
+                if prn_detail > 9: print("(  [e.0] last border ",Curn_D,Prev_D,Curn_U,Prev_U,start,j,hhh1,self.layer_depth,(hhh1 <= self.layer_depth),self.higher_then_layer_depth(hhh1)," )")
                 verify_curn = False
                 First_border = True
         #-delineating  - 'start' pixel
@@ -1206,12 +1212,12 @@ class Converter:
                 if Next_D: 
                     verify_prev = False
                     First_border = True
-                    if prn_detail > 9: print "(  [e] first border ",Curn_D,Next_D,Curn_U,Next_U,next_i,j,hhh2," )"
+                    if prn_detail > 9: print("(  [e] first border ",Curn_D,Next_D,Curn_U,Next_U,next_i,j,hhh2," )")
                 else: 
                     verify_prev = True
                     verify_curn = False
                     Last_border = True
-                    if prn_detail > 9: print "(  [e] last border ",Curn_D,Next_D,Curn_U,Next_U,i,j,hhh1," )"
+                    if prn_detail > 9: print("(  [e] last border ",Curn_D,Next_D,Curn_U,Next_U,i,j,hhh1," )")
             else: verify_prev = True
             #-delineating
 
@@ -1314,11 +1320,11 @@ class Converter:
             if Prev_D: 
                 verify_prev = False
                 First_border = True
-                if prn_detail > 9: print "( ??? [l.0] first border ",Curn_D,Prev_D,Curn_U,Prev_U,t_i,j,hhh3," )"
+                if prn_detail > 9: print("( ??? [l.0] first border ",Curn_D,Prev_D,Curn_U,Prev_U,t_i,j,hhh3," )")
             elif Curn_D: 
                 verify_curn = False
                 Last_border = True
-                if prn_detail > 9: print "(  [l.0] last border ",Curn_D,Prev_D,Curn_U,Prev_U,t_i,j,hhh1," )"
+                if prn_detail > 9: print("(  [l.0] last border ",Curn_D,Prev_D,Curn_U,Prev_U,t_i,j,hhh1," )")
         #-delineating - 'start' pixel
 
         for i in range(start, min_pix-1, -1):   #pixels - go to the left
@@ -1340,12 +1346,12 @@ class Converter:
                 if Next_D: 
                     verify_prev = False
                     Last_border = True
-                    if prn_detail > 9: print "(  [l] first border ",Curn_D,Next_D,Curn_U,Next_U,i-1,j,hhh2," )"
+                    if prn_detail > 9: print("(  [l] first border ",Curn_D,Next_D,Curn_U,Next_U,i-1,j,hhh2," )")
                 else: 
                     verify_prev = True
                     verify_curn = False
                     First_border = True
-                    if prn_detail > 9: print "(  [l] last border ",Curn_D,Next_D,Curn_U,Next_U,i,j,hhh1," )"
+                    if prn_detail > 9: print("(  [l] last border ",Curn_D,Next_D,Curn_U,Next_U,i,j,hhh1," )")
             else: verify_prev = True
             #-delineating
 
@@ -1435,8 +1441,8 @@ class Converter:
                     else:
                         if line_cache > j: line_cache = j
 
-                if prn_detail > 3: print "( f-d entry rezult: L{0} obj{1} lin{2} PL{3} border[f{4}, l{5}] lim[{6}, {7}] - next[{8},{9}])".format(\
-                                    self.layer,object_num,j,Prev_line,First_border,Last_border,min_pix,max_pix,Pixel_entry_f,Pixel_entry_l) 
+                if prn_detail > 3: print("( f-d entry rezult: L{0} obj{1} lin{2} PL{3} border[f{4}, l{5}] lim[{6}, {7}] - next[{8},{9}])".format(
+                                    self.layer,object_num,j,Prev_line,First_border,Last_border,min_pix,max_pix,Pixel_entry_f,Pixel_entry_l)) 
             else:
 
                 Pixel_entry_f_next = -1
@@ -1447,8 +1453,8 @@ class Converter:
                     pass
                 elif (st % 2) and First_border:
                     # fist - go left from Pixel_entry_f - then - right
-                    if prn_detail > 3: print "( f-d from First border: L{0} obj{1} lin{2} PL{3} border[f{4}, l{5}] lim[{6}, {7}] from[{8}, {9}])".format(\
-                                        self.layer,object_num,j,Prev_line,First_border,Last_border,min_pix,max_pix,Pixel_entry_f,Pixel_entry_l)    
+                    if prn_detail > 3: print("( f-d from First border: L{0} obj{1} lin{2} PL{3} border[f{4}, l{5}] lim[{6}, {7}] from[{8}, {9}])".format(
+                                        self.layer,object_num,j,Prev_line,First_border,Last_border,min_pix,max_pix,Pixel_entry_f,Pixel_entry_l))    
                     
                     CurF = max(Pixel_entry_f,min_pix)
                     CurL = min(Pixel_entry_l,max_pix)
@@ -1462,12 +1468,12 @@ class Converter:
                     # right **************************************************************************************************************************
                     if Pixel_entry_l_next == -1:
                         start_from = CurF
-                        if prn_detail > 4: print "( -Wasn't f-d: border[f{0}, l{1}] Next[F{2}, L{3}] start[{4}])".format(\
-                                            First_border,Last_border, Pixel_entry_f_next, Pixel_entry_l_next,start_from)
+                        if prn_detail > 4: print("( -Wasn't f-d: border[f{0}, l{1}] Next[F{2}, L{3}] start[{4}])".format(
+                                            First_border,Last_border, Pixel_entry_f_next, Pixel_entry_l_next,start_from))
                     else:
                         start_from = Pixel_entry_l_next
-                        if prn_detail > 4: print "( + Found: border[f{0}, l{1}] Next[F{2}, L{3}] start[{4}])".format(\
-                                            First_border,Last_border, Pixel_entry_f_next, Pixel_entry_l_next,start_from)
+                        if prn_detail > 4: print("( + Found: border[f{0}, l{1}] Next[F{2}, L{3}] start[{4}])".format(
+                                            First_border,Last_border, Pixel_entry_f_next, Pixel_entry_l_next,start_from))
 
 
                     tPixel_entry_f,Pixel_entry_l_next,tFirst_border,tLast_border = self.get_entry_pixels_go_end(\
@@ -1478,13 +1484,13 @@ class Converter:
                     First_border = (tFirst_border or First_border)
                     Last_border  = (tLast_border or Last_border)
 
-                    if prn_detail > 2: print "(f-d from First border rezult: L{0} obj{1} lin{2} border[f{3}, l{4}] Next[{5}, {6}])".format(\
-                                        self.layer,object_num,j,First_border,Last_border, Pixel_entry_f_next, Pixel_entry_l_next)
+                    if prn_detail > 2: print("(f-d from First border rezult: L{0} obj{1} lin{2} border[f{3}, l{4}] Next[{5}, {6}])".format(
+                                        self.layer,object_num,j,First_border,Last_border, Pixel_entry_f_next, Pixel_entry_l_next))
                     #**************************************************************************************************************************
                 else:
                     # fist - go right - then - left
-                    if prn_detail > 3: print "( f-d from Last border: L{0} obj{1} lin{2} PL{3} border[f{4}, l{5}] lim[{6}, {7}] from[{8}, {9}])".\
-                                        format(self.layer,object_num,j,Prev_line,First_border,Last_border,min_pix,max_pix,Pixel_entry_f,Pixel_entry_l)    
+                    if prn_detail > 3: print("( f-d from Last border: L{0} obj{1} lin{2} PL{3} border[f{4}, l{5}] lim[{6}, {7}] from[{8}, {9}])".
+                                        format(self.layer,object_num,j,Prev_line,First_border,Last_border,min_pix,max_pix,Pixel_entry_f,Pixel_entry_l))    
                     
                     CurF = max(Pixel_entry_f,min_pix)
                     CurL = min(Pixel_entry_l,max_pix)
@@ -1498,12 +1504,12 @@ class Converter:
                     #**************************************************************************************************************************
                     if Pixel_entry_f_next == -1:
                         start_from = CurL
-                        if prn_detail > 4: print "( -Wasn't f-d: border[f{0}, l{1}] Next[F{2}, L{3}] start[{4}])".format(\
-                                            First_border,Last_border, Pixel_entry_f_next, Pixel_entry_l_next,start_from)
+                        if prn_detail > 4: print("( -Wasn't f-d: border[f{0}, l{1}] Next[F{2}, L{3}] start[{4}])".format(
+                                            First_border,Last_border, Pixel_entry_f_next, Pixel_entry_l_next,start_from))
                     else:
                         start_from = Pixel_entry_f_next
-                        if prn_detail > 4: print "( + Found: border[f{0}, l{1}] Next[F{2}, L{3}] start[{4}])".format(\
-                                            First_border,Last_border, Pixel_entry_f_next, Pixel_entry_l_next,start_from)
+                        if prn_detail > 4: print("( + Found: border[f{0}, l{1}] Next[F{2}, L{3}] start[{4}])".format(
+                                            First_border,Last_border, Pixel_entry_f_next, Pixel_entry_l_next,start_from))
 
 
                     Pixel_entry_f_next, tPixel_entry_l, tFirst_border, tLast_border = self.get_entry_pixels_go_start(\
@@ -1514,8 +1520,8 @@ class Converter:
                     First_border = (tFirst_border or First_border)
                     Last_border  = (tLast_border or Last_border)
 
-                    if prn_detail > 2: print "(f-d from Last border rezult: L{0} obj{1} lin{2} border[f{3}, l{4}] Next[{5}, {6}])".format(\
-                                            self.layer,object_num,j, First_border,Last_border, Pixel_entry_f_next, Pixel_entry_l_next)
+                    if prn_detail > 2: print("(f-d from Last border rezult: L{0} obj{1} lin{2} border[f{3}, l{4}] Next[{5}, {6}])".format(
+                                            self.layer,object_num,j, First_border,Last_border, Pixel_entry_f_next, Pixel_entry_l_next))
                     #**************************************************************************************************************************
 
                 #if (Pixel_entry_f_next == -1 or Pixel_entry_l_next == -1) and (Pixel_entry_f_next != -1 or Pixel_entry_l_next != -1):
@@ -1526,21 +1532,21 @@ class Converter:
 
                 #dont_cut_angles:
                 if prn_detail > 8: 
-                    print "( dont_cut_angles r:{0} F prev[{3}] current[{1}] next[{2}])".format(Prev_line,Pixel_entry_f,Pixel_entry_f_next,Pixel_entry_f_prev)
-                    print "( dont_cut_angles r:{0} L prev[{3}] current[{1}] next[{2}])".format(Prev_line,Pixel_entry_l,Pixel_entry_l_next,Pixel_entry_l_prev)
+                    print("( dont_cut_angles r:{0} F prev[{3}] current[{1}] next[{2}])".format(Prev_line,Pixel_entry_f,Pixel_entry_f_next,Pixel_entry_f_prev))
+                    print("( dont_cut_angles r:{0} L prev[{3}] current[{1}] next[{2}])".format(Prev_line,Pixel_entry_l,Pixel_entry_l_next,Pixel_entry_l_prev))
                 if st % 2:
                     if Pixel_entry_l_prev  > Pixel_entry_l: 
-                        if prn_detail > 2: print "( dont_cut_angles r:{0} l_prev:{1} -> l:{2})".format(Prev_line,Pixel_entry_l_prev,Pixel_entry_l)
+                        if prn_detail > 2: print("( dont_cut_angles r:{0} l_prev:{1} -> l:{2})".format(Prev_line,Pixel_entry_l_prev,Pixel_entry_l))
                         Pixel_entry_l = Pixel_entry_l_prev
                     if Pixel_entry_f_next != -1 and Pixel_entry_f_next < Pixel_entry_f: 
-                        if prn_detail > 2: print "( dont_cut_angles r:{0} f_next:{1} -> f:{2})".format(Prev_line,Pixel_entry_f_next,Pixel_entry_f)
+                        if prn_detail > 2: print("( dont_cut_angles r:{0} f_next:{1} -> f:{2})".format(Prev_line,Pixel_entry_f_next,Pixel_entry_f))
                         Pixel_entry_f = Pixel_entry_f_next
                 else:
                     if Pixel_entry_l_next  > Pixel_entry_l: 
-                        if prn_detail > 2: print "( dont_cut_angles r:{0} l_next:{1} -> l:{2})".format(Prev_line,Pixel_entry_l_next,Pixel_entry_l)
+                        if prn_detail > 2: print("( dont_cut_angles r:{0} l_next:{1} -> l:{2})".format(Prev_line,Pixel_entry_l_next,Pixel_entry_l))
                         Pixel_entry_l = Pixel_entry_l_next
                     if Pixel_entry_f_prev !=-1 and Pixel_entry_f_prev < Pixel_entry_f: 
-                        if prn_detail > 2: print "( dont_cut_angles r:{0} f_prev:{1} -> f:{2})".format(Prev_line,Pixel_entry_f_prev,Pixel_entry_f)
+                        if prn_detail > 2: print("( dont_cut_angles r:{0} f_prev:{1} -> f:{2})".format(Prev_line,Pixel_entry_f_prev,Pixel_entry_f))
                         Pixel_entry_f = Pixel_entry_f_prev
                 #-dont_cut_angles
 
@@ -1554,12 +1560,12 @@ class Converter:
                     make_gk[Prev_line] = (Pixel_entry_f,Pixel_entry_l)
 
                     if prn_detail > 1: 
-                        print "( Add to dict GK: L{0} obj{1} lin{2} [F{3}, L{4}] st={5})".format(self.layer,object_num,\
-                            Prev_line,Pixel_entry_f,Pixel_entry_l,(st-1)%2)   #,P_f,P_l,self.ts) 
-                    if prn_detail > 2: print " "
+                        print("( Add to dict GK: L{0} obj{1} lin{2} [F{3}, L{4}] st={5})".format(self.layer,object_num,
+                            Prev_line,Pixel_entry_f,Pixel_entry_l,(st-1)%2))   #,P_f,P_l,self.ts) 
+                    if prn_detail > 2: print(" ")
 
                 elif Pixel_entry_f != -1 or Pixel_entry_l != -1: 
-                    if prn_detail > -1: print"( ERROR (*)******************",self.layer," lin: ",j, Pixel_entry_f, Pixel_entry_l," )"
+                    if prn_detail > -1: print("( ERROR (*)******************",self.layer," lin: ",j, Pixel_entry_f, Pixel_entry_l," )")
 
                 Pixel_entry_f_prev = Pixel_entry_f
                 Pixel_entry_l_prev = Pixel_entry_l
@@ -1567,7 +1573,7 @@ class Converter:
                 Pixel_entry_l = Pixel_entry_l_next
 
                 if object_is_found and Pixel_entry_f == -1 and Pixel_entry_l == -1: 
-                    if prn_detail > 1: print "( Don't find Next[F{3}, L{4}] in lin:{2})".format(self.layer,object_num,j, Pixel_entry_f,Pixel_entry_l)
+                    if prn_detail > 1: print("( Don't find Next[F{3}, L{4}] in lin:{2})".format(self.layer,object_num,j, Pixel_entry_f,Pixel_entry_l))
                     break
 
             Pixel_entry_f,Pixel_entry_l = self.chek_gr(Pixel_entry_f,Pixel_entry_l,min_pix,max_pix,object_num,j)
@@ -1580,11 +1586,11 @@ class Converter:
             #dont_cut_angles:
             if st % 2:
                 if Pixel_entry_l_prev  > Pixel_entry_l: 
-                    if prn_detail > 2: print "( dont_cut_angles r:{0} l_prev:{1} -> l:{2})".format(j,Pixel_entry_l_prev,Pixel_entry_l)
+                    if prn_detail > 2: print("( dont_cut_angles r:{0} l_prev:{1} -> l:{2})".format(j,Pixel_entry_l_prev,Pixel_entry_l))
                     Pixel_entry_l = Pixel_entry_l_prev
             else:
                 if Pixel_entry_f_prev !=-1 and Pixel_entry_f_prev < Pixel_entry_f: 
-                    if prn_detail > 2: print "( dont_cut_angles r:{0} f_prev:{1} -> f:{2})".format(j,Pixel_entry_f_prev,Pixel_entry_f)
+                    if prn_detail > 2: print("( dont_cut_angles r:{0} f_prev:{1} -> f:{2})".format(j,Pixel_entry_f_prev,Pixel_entry_f))
                     Pixel_entry_f = Pixel_entry_f_prev
             #-dont_cut_angles
 
@@ -1592,17 +1598,17 @@ class Converter:
 
             make_gk[j] = (Pixel_entry_f,Pixel_entry_l)
 
-            if prn_detail > 1: print "( Add to dict GK_: L{0} obj{1} lin{2} [F{3}, L{4}] st={5})".format(\
-                                self.layer,object_num,j,Pixel_entry_f,Pixel_entry_l,st%2)   #,P_f,P_l,self.ts) 
+            if prn_detail > 1: print("( Add to dict GK_: L{0} obj{1} lin{2} [F{3}, L{4}] st={5})".format(
+                                self.layer,object_num,j,Pixel_entry_f,Pixel_entry_l,st%2))   #,P_f,P_l,self.ts) 
 
         elif Pixel_entry_f != -1 or Pixel_entry_l != -1: 
-            if prn_detail > -1: print "( ERROR (**)*****************",self.layer," lin: ",j, Pixel_entry_f, Pixel_entry_l," )"
+            if prn_detail > -1: print("( ERROR (**)*****************",self.layer," lin: ",j, Pixel_entry_f, Pixel_entry_l," )")
 
         if prn_detail > 1:
             if object_is_found: 
-                print "(End of obj: {0} lines: {1} entry point [{2}, {3}])".format(object_num,len(make_gk),mas_p[0],mas_p[1]) 
+                print("(End of obj: {0} lines: {1} entry point [{2}, {3}])".format(object_num,len(make_gk),mas_p[0],mas_p[1]) )
             else:
-                print "(Object not found.)"
+                print("(Object not found.)")
 
         return make_gk,line_cache,object_is_found,mas_p
 
@@ -1617,20 +1623,20 @@ class Converter:
 
         if first > max_pix:
             #suda ne doljno zaiti!!!!
-            if prn_detail > -1: print "Error logik(!) Pixel_entry_f_next > max_pix: {0} > {1} layer: {2} obj: {3} line {4}".format(first, max_pix,self.layer,object_num,line)
+            if prn_detail > -1: print("Error logik(!) Pixel_entry_f_next > max_pix: {0} > {1} layer: {2} obj: {3} line {4}".format(first, max_pix,self.layer,object_num,line))
             first = max_pix_
         elif first < min_pix:
             #suda ne doljno zaiti!!!!
-            if prn_detail > -1: print "Error logik(!) Pixel_entry_f_next < min_pix: {0} < {1} layer: {2} obj: {3} line {4}".format(first, min_pix,self.layer,object_num,line)
+            if prn_detail > -1: print("Error logik(!) Pixel_entry_f_next < min_pix: {0} < {1} layer: {2} obj: {3} line {4}".format(first, min_pix,self.layer,object_num,line))
             first = min_pix_
 
         if max_pix < last:
             #suda ne doljno zaiti!!!!
-            if prn_detail > -1: print "Error logik(!) Pixel_entry_l_next > max_pix: {0} > {1} layer: {2} obj: {3} line {4}".format(last, max_pix,self.layer,object_num,line)
+            if prn_detail > -1: print("Error logik(!) Pixel_entry_l_next > max_pix: {0} > {1} layer: {2} obj: {3} line {4}".format(last, max_pix,self.layer,object_num,line))
             last = max_pix_
         elif min_pix > last:
             #suda ne doljno zaiti!!!!
-            if prn_detail > -1: print "Error logik(!) Pixel_entry_l_next > min_pix: {0} < {1} layer: {2} obj: {3} line {4}".format(last, min_pix,self.layer,object_num,line)
+            if prn_detail > -1: print("Error logik(!) Pixel_entry_l_next > min_pix: {0} < {1} layer: {2} obj: {3} line {4}".format(last, min_pix,self.layer,object_num,line))
             last = min_pix_
 
         return first,last
@@ -1639,12 +1645,12 @@ class Converter:
         max_ = max(max_y,max_x)
 
         i = 0
-        if prn_detail > 1: print "(start the search next entry from [",y1,x1,"] )"
+        if prn_detail > 1: print("(start the search next entry from [",y1,x1,"] )")
 
         while True:
 
             if i > max_:
-                if prn_detail > -1: print "( BREAK: LOGIK ERROR(0): ",i," )"
+                if prn_detail > -1: print("( BREAK: LOGIK ERROR(0): ",i," )")
                 break
 
             ww2 = {}
@@ -1684,7 +1690,7 @@ class Converter:
 
             if len(ww2) == 0:
                 if prn_detail > -1: 
-                    print "( BREEEEEAK: LOGIK ERROR(!): ",i,len(mas_p),max_x,max_y,y1-i,y1+i,x1-i,x1+i," )"
+                    print("( BREEEEEAK: LOGIK ERROR(!): ",i,len(mas_p),max_x,max_y,y1-i,y1+i,x1-i,x1+i," )")
                     print(mas_p)
                     #print(ww2)                
                 break
@@ -1696,7 +1702,7 @@ class Converter:
                 y,x = ww2[num]
                 try:
                     m = mas_p[y,x]
-                    if prn_detail > 2: print "( find next entry in [",y,x,"] obj: ",m," iter: ",i," )"
+                    if prn_detail > 2: print("( find next entry in [",y,x,"] obj: ",m," iter: ",i," )")
                     return y,x
                 except KeyError:
                     m = 0
@@ -1737,7 +1743,7 @@ class Converter:
         #warning: objects on one layer may overlap ONLY due corrections angles 'dont_cut_angles' in 'get_dict_gk'
         #Warning: objects may intersect at several locations simultaneously
 
-        if prn_detail > 1: print "(Create a list of adjacent objects of this layer: {0} parent object num: {1})".format(layer,object_num_prt)
+        if prn_detail > 1: print("(Create a list of adjacent objects of this layer: {0} parent object num: {1})".format(layer,object_num_prt))
 
         max_line,max_pix = self.get_RowCol(self.w, self.h)  # not (self.? - self.ts_roughing - 1) !?
 
@@ -1756,7 +1762,7 @@ class Converter:
                     y,x,make_gk2 = objects_layer[num2]
                     if rw - 1 >= 0 \
                         and self.objects_relate_to(make_gk2,rw-1,Cur_f, Cur_l):
-                        if prn_detail > 1: print "( gluing pieces N {0} and N {1} lines: {2},{3} pixels: {4},{5})".format(num,num2,rw,rw-1,Cur_f, Cur_l)
+                        if prn_detail > 1: print("( gluing pieces N {0} and N {1} lines: {2},{3} pixels: {4},{5})".format(num,num2,rw,rw-1,Cur_f, Cur_l))
                         try:
                             if num2 not in mas_glp[num]: mas_glp[num].append(num2)
                         except:
@@ -1766,7 +1772,7 @@ class Converter:
                                 mas_glp[num] = [num2]
                     elif rw + 1 <= max_line \
                         and self.objects_relate_to(make_gk2,rw+1,Cur_f, Cur_l):
-                        if prn_detail > 1: print "( gluing pieces N {0} and N {1} lines: {2},{3} pixels: {4},{5})".format(num,num2,rw,rw+1,Cur_f, Cur_l)
+                        if prn_detail > 1: print("( gluing pieces N {0} and N {1} lines: {2},{3} pixels: {4},{5})".format(num,num2,rw,rw+1,Cur_f, Cur_l))
                         try:
                             if num2 not in mas_glp[num]: mas_glp[num].append(num2)
                         except:
@@ -1793,8 +1799,8 @@ class Converter:
                 if num2 in mas_parents: continue
                 if self.objects_relate_to(make_gk,rw,Cur_f, Cur_l):
                     if prn_detail > 2: 
-                        print "( child pieces N {1} in L: {0} has parent N {2} in L {6} line: {3} pixels: {4},{5})".format(\
-                                    layer,num,num2,rw,Cur_f, Cur_l,layer-1)
+                        print("( child pieces N {1} in L: {0} has parent N {2} in L {6} line: {3} pixels: {4},{5})".format(
+                                    layer,num,num2,rw,Cur_f, Cur_l,layer-1))
                     mas_parents.append(num2)
 
         #print("mas_parents: ",mas_parents)
@@ -1807,7 +1813,7 @@ class Converter:
         #: child may have more than one parent objects
         #: parent object can have multiple children
 
-        if prn_detail > 0: print "(Create a tree of relationships between objects. Start at {0})".format(datetime.datetime.now())
+        if prn_detail > 0: print("(Create a tree of relationships between objects. Start at {0})".format(datetime.datetime.now()))
 
         max_line,max_pix = self.get_RowCol(self.w, self.h)  # not (self.? - self.ts_roughing - 1) !?
 
@@ -1820,7 +1826,7 @@ class Converter:
         if prn_detail > 2: 
             for object_num in mas_pieces[0]:
                 y,x,make_gk = mas_pieces[0][object_num]
-                print "( L: 0 radical parent N {0} enter point[{1},{2}])".format(object_num,y,x)
+                print("( L: 0 radical parent N {0} enter point[{1},{2}])".format(object_num,y,x))
 
         lrange = range(1,ld)
         for layer in lrange:
@@ -1840,17 +1846,17 @@ class Converter:
 
         if prn_detail > 0: 
             if self.roughing_minus_finishing:
-                print "(Start mill objectiv mode. Previous cutter minus next cutter [objectiv R2]. Start {0}.)".format(datetime.datetime.now())
+                print("(Start mill objectiv mode. Previous cutter minus next cutter [objectiv R2]. Start {0}.)".format(datetime.datetime.now()))
             else:
-                print "(Start mill objectiv mode. MaxBG_down {0} MaxBG_up {1} BG bord. {2} LD {3}. Start {4})".format(self.MaxBackground_down,\
-                    self.MaxBackground_up,self.background_border,self.layer_depth,datetime.datetime.now())  
+                print("(Start mill objectiv mode. MaxBG_down {0} MaxBG_up {1} BG bord. {2} LD {3}. Start {4})".format(self.MaxBackground_down,
+                    self.MaxBackground_up,self.background_border,self.layer_depth,datetime.datetime.now()))  
 
         if not self.optimize_path and self.roughing_offset > 0 and self.pixelsize <= self.roughing_offset:
             min_len1row = int(self.pixelsize/self.roughing_offset)
         else: 
             min_len1row = 0
 
-        if prn_detail > 0: print "( If rows is only one - min len is {0})".format(min_len1row)
+        if prn_detail > 0: print("( If rows is only one - min len is {0})".format(min_len1row))
 
         max_line,max_pix = self.get_RowCol(self.w1,self.h1)
 
@@ -1880,7 +1886,7 @@ class Converter:
             #
             #For other types of creating g-kode - "BG filtering" integrated in proc-s: get_entry_pixels_go_XXX, not_background and pixel_use
 
-            if prn_detail > 0: print "( Make filter for background. Max background len: [{0}]. Start at {1})".format(self.max_bg_len,datetime.datetime.now())
+            if prn_detail > 0: print("( Make filter for background. Max background len: [{0}]. Start at {1})".format(self.max_bg_len,datetime.datetime.now()))
             if self.row_mill: line_cache = 0
             else:       line_cache = self.h1
             object_is_found = True
@@ -1891,7 +1897,7 @@ class Converter:
             while object_is_found:
 
                 object_num = object_num + 1
-                if prn_detail > 1: print "(  Object_num: {0} line_cache {1})".format(object_num,line_cache)
+                if prn_detail > 1: print("(  Object_num: {0} line_cache {1})".format(object_num,line_cache))
 
                 make_gk,line_cache,object_is_found,(y,x) = self.get_dict_gk(processed_cur,line_cache,object_num,mas_obj_filter)
 
@@ -1903,19 +1909,19 @@ class Converter:
                         for i in range(Pixel_entry_f,Pixel_entry_l+1): processed_cur[j,i] = 7
 
             if prn_detail > 0: 
-                print "(End make list of objects filter. Layer: 1 Items: {0}. 'Max bakground len' [{1}])".format(len(objects_filter),self.max_bg_len)
+                print("(End make list of objects filter. Layer: 1 Items: {0}. 'Max bakground len' [{1}])".format(len(objects_filter),self.max_bg_len))
 
             self.roughing_minus_finishing = tmp_frmf    #restore
 
             if self.roughing_minus_finishing: 
                 self.max_bg_len = max(self.pixelstep, int(self.tool.size/2) ) + 2 # (pixelstep or "radius of cutter") + 2
-                if prn_detail > 0: print "(New 'Max bakground len' [{0}])".format(self.max_bg_len)
+                if prn_detail > 0: print("(New 'Max bakground len' [{0}])".format(self.max_bg_len))
         else:
             objects_filter.append((1,mas_obj_filter))   #without filtering background = all image
         #**********************************************************************************
 
         #Step 3 - make list of objects to make gk
-        if prn_detail > 0: print "(Make list of objects to make gk. Start at {0})".format(datetime.datetime.now())
+        if prn_detail > 0: print("(Make list of objects to make gk. Start at {0})".format(datetime.datetime.now()))
         self.layer = 0
         
         item_npp = 0
@@ -1940,7 +1946,7 @@ class Converter:
             self.layer_depth = r
             mas_rd.append(self.layer_depth)
 
-            if prn_detail > 1: print "(  Layer {0} rmd={1} min: {2})".format(self.layer,r,imin)
+            if prn_detail > 1: print("(  Layer {0} rmd={1} min: {2})".format(self.layer,r,imin))
 
 
             processed_cur = {}
@@ -1955,8 +1961,8 @@ class Converter:
                 while object_is_found:
 
                     if prn_detail > 1:
-                        print " "
-                        print "(  object_num: {0} paren object {1} line_cache {2})".format(object_num,object_num_prt,line_cache)
+                        print(" ")
+                        print("(  object_num: {0} paren object {1} line_cache {2})".format(object_num,object_num_prt,line_cache))
                          
                     object_is_found = False
                     make_gk,line_cache,object_is_found,(y,x) = self.get_dict_gk(processed_cur,line_cache,object_num,mas_obj_filter)
@@ -1964,8 +1970,8 @@ class Converter:
                     if object_is_found:
 
                         if min_len1row > 0 and len(make_gk) == 1 and abs(make_gk[make_gk.keys()[0]][0]-make_gk[make_gk.keys()[0]][1]) <= min_len1row:
-                            if prn_detail > 1: print "(  Not added - obj: {0} corse - pixels len: {2} < min len: {3})".format(object_num,object_num_prt,\
-                                    abs(make_gk[make_gk.keys()[0]][0]-make_gk[make_gk.keys()[0]][1]),min_len1row)
+                            if prn_detail > 1: print("(  Not added - obj: {0} corse - pixels len: {2} < min len: {3})".format(object_num,object_num_prt,
+                                    abs(make_gk[make_gk.keys()[0]][0]-make_gk[make_gk.keys()[0]][1]),min_len1row))
                             pass
                         else:
                             objects_layer[object_num] = (y,x,make_gk)
@@ -1988,15 +1994,15 @@ class Converter:
 
 
 
-            if prn_detail > 0: print "(End make list of objects. Layers: {0} Items: {1}.)".format(len(mas_pieces),item_npp)
+            if prn_detail > 0: print( "(End make list of objects. Layers: {0} Items: {1}.)".format(len(mas_pieces),item_npp))
 
         #Step 4 - group list of objects to tree
         #tree_prt[layer,num child1] = [num parent1,num parent2,num parent3,...]
-        if prn_detail > 0: print "(Group list of objects to trees. Start at {0})".format(datetime.datetime.now())
+        if prn_detail > 0: print("(Group list of objects to trees. Start at {0})".format(datetime.datetime.now()))
         tree_prt = self.get_tree_prt(mas_pieces)
 
         #Step 5 - sorting trees of objects
-        if prn_detail > 0: print "(Sorting of all trees. Start at {0})".format(datetime.datetime.now())
+        if prn_detail > 0: print("(Sorting of all trees. Start at {0})".format(datetime.datetime.now()))
         
         #format processed_obj[layer,num parent] = sequence(traversal) order
         processed_obj = {}        
@@ -2007,10 +2013,10 @@ class Converter:
 
             processed_obj = self.sort_tree(layer,object_num,mas_pieces,processed_obj,tree_prt,mas_glp,item_npp)
 
-        if prn_detail > 0: print "(End sorting all trees at {0})".format(datetime.datetime.now())
+        if prn_detail > 0: print("(End sorting all trees at {0})".format(datetime.datetime.now()))
 
         #Step 6 - make GK        
-        sorted_tree = sorted(processed_obj.items(), key=lambda (k, v): v)
+        sorted_tree = sorted(processed_obj.items(), key=lambda k, v: v)
         #print sorted_tree
         for (layer,object_num),npp in sorted_tree:
             self.layer_depth_prev = self.layer_depth    #'layer_depth_prev' need for 'optimize_path'
@@ -2018,7 +2024,7 @@ class Converter:
             y,x,make_gk = mas_pieces[layer][object_num]
             self.gk_maker(make_gk, max_pix, {}, convert_scan, primary,object_num,layer)
 
-        if prn_detail > 0: print "(End make g-kod at {0})".format(datetime.datetime.now())
+        if prn_detail > 0: print("(End make g-kod at {0})".format(datetime.datetime.now()))
             
         
     def get_first_piec(self,mas_pieces,processed_obj):
@@ -2035,7 +2041,7 @@ class Converter:
                     except:
                         mass.append((layer,object_num))
                         if self.layer_by_layer: max_l = layer
-            layer_last,object_num_last = sorted(processed_obj.items(), key=lambda (k, v): v)[-1][0]        
+            layer_last,object_num_last = sorted(processed_obj.items(), key=lambda k, v: v)[-1][0]        
             layer,object_num = self.get_nearest_obj(-1,-1,layer_last,object_num_last,mas_pieces,mass)
 
             
@@ -2043,7 +2049,7 @@ class Converter:
         else:
             for layer in lrange:
                 for object_num in mas_pieces[layer]:
-                    if prn_detail > 1: print "( Start tree from item- L: {0} obj: {1})".format(layer,object_num)
+                    if prn_detail > 1: print("( Start tree from item- L: {0} obj: {1})".format(layer,object_num))
                     return layer,object_num
 
             return -1,-1
@@ -2074,7 +2080,7 @@ class Converter:
             #recurs make child first
             if self.is_processed(layer-1,child_num,processed_obj): continue
 
-            #if prn_detail > 2: print "(  first process his child- L: {0} obj: {1})".format(layer-1,child_num)
+            #if prn_detail > 2: print("(  first process his child- L: {0} obj: {1})".format(layer-1,child_num))
             child_is_found = True
 
             mass = self.get_mas_eb_rekurs(layer-1,child_num,tree_prt,processed_obj,mass)
@@ -2083,7 +2089,7 @@ class Converter:
         #warning: branches can be fused. Therefore '(layer,object_num) not in mass'
         if not child_is_found and ((layer,object_num) not in mass): 
             mass.append((layer,object_num))
-            if prn_detail > 2: print "(   *add end of the branch - L: {0} obj: {1})".format(layer,object_num)
+            if prn_detail > 2: print("(   *add end of the branch - L: {0} obj: {1})".format(layer,object_num))
 
 
         #*******************************************************************
@@ -2095,7 +2101,7 @@ class Converter:
  
         for cur_p in mas_adj:
             if self.is_processed(layer,cur_p,processed_obj): continue
-            if prn_detail > 2: print "(  *add end of the branch in adjacent branch- L: {0} obj: {1})".format(layer,cur_p)
+            if prn_detail > 2: print("(  *add end of the branch in adjacent branch- L: {0} obj: {1})".format(layer,cur_p))
 
             mass = self.get_mas_eb_rekurs(layer,cur_p,tree_prt,processed_obj,mass)
         #*******************************************************************
@@ -2119,18 +2125,18 @@ class Converter:
                 if min_len > cur_len: 
                     min_len = cur_len
                     next_layer,next_object_num = layer2,object_num2
-            if prn_detail > 2: print "(   L: {0} obj: {1} closest to him is L: {2} obj: {3} [{4}])".format(\
-                                    layer_last,object_num_last,next_layer,next_object_num,len(mass))
+            if prn_detail > 2: print("(   L: {0} obj: {1} closest to him is L: {2} obj: {3} [{4}])".format(
+                                    layer_last,object_num_last,next_layer,next_object_num,len(mass)))
             
         if next_layer == layer_last and next_object_num == object_num_last:
-            if prn_detail > -1: print "(   Error() nearest- not found L: {0} obj: {1} [{2}])".format(next_layer,next_object_num,len(mass))
+            if prn_detail > -1: print("(   Error() nearest- not found L: {0} obj: {1} [{2}])".format(next_layer,next_object_num,len(mass)))
 
         return next_layer,next_object_num
 
 
     def sort_tree(self,layer,object_num,mas_pieces,processed_obj,tree_prt,mas_glp,item_npp):
 
-        if prn_detail > 1: print "( look- L: {0} obj: {1})".format(layer,object_num)
+        if prn_detail > 1: print("( look- L: {0} obj: {1})".format(layer,object_num))
         layer_last,object_num_last = layer,object_num
         max_layer = len(mas_pieces)
 
@@ -2147,7 +2153,7 @@ class Converter:
             #mas_childs - is massive of children of processed pieces
             #mas_adj    - is massive of adjacent of processed pieces
 
-            if prn_detail > 2: print "( process piec - L: {0} obj: {1})".format(layer,object_num)
+            if prn_detail > 2: print("( process piec - L: {0} obj: {1})".format(layer,object_num))
 
             #1. ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
             #first of all - look Up for parents (rekursion)
@@ -2161,7 +2167,7 @@ class Converter:
                 #recurs make parent first
                 if self.is_processed(layer-1,parent_num,processed_obj): continue
 
-                if prn_detail > 2: print "(  he has parent/s...)"
+                if prn_detail > 2: print("(  he has parent/s...)")
                 parent_is_found = True
 
 
@@ -2170,7 +2176,7 @@ class Converter:
 
                 layer,object_num = self.get_nearest_obj(layer,object_num,layer_last,object_num_last,mas_pieces,mass)
 
-                if prn_detail > 2: print "(  first process his parent- L: {0} obj: {1})".format(layer,object_num)
+                if prn_detail > 2: print("(  first process his parent- L: {0} obj: {1})".format(layer,object_num))
                 break
 
             if parent_is_found: continue    #process parent
@@ -2182,12 +2188,12 @@ class Converter:
             #make current        
             try:
                 isprocessed = processed_obj[layer,object_num]
-                if prn_detail > -1: print "(!!!! ERROR(0) ALREDY PROCESSED!!! L: {0} obj: {1})".format(layer,object_num)
+                if prn_detail > -1: print("(!!!! ERROR(0) ALREDY PROCESSED!!! L: {0} obj: {1})".format(layer,object_num))
                 return processed_obj
             except:
                 #obj for GK make here
 
-                if prn_detail > 1: print "(  make GK- L: {0} obj: {1})".format(layer,object_num)
+                if prn_detail > 1: print("(  make GK- L: {0} obj: {1})".format(layer,object_num))
                 layer_last,object_num_last = layer,object_num
                 cur_npp = len(processed_obj)
                 processed_obj[layer,object_num] = cur_npp
@@ -2234,8 +2240,8 @@ class Converter:
                         #This is children of current piece.
                         if chl_object_num not in chlds_layer:
 
-                            if prn_detail > 2: print "(   remember child- L: {0} obj: {1} order: {2})".format(\
-                                                layer+1,chl_object_num,len(chlds_layer))
+                            if prn_detail > 2: print("(   remember child- L: {0} obj: {1} order: {2})".format(
+                                                layer+1,chl_object_num,len(chlds_layer)))
                             #order in this array is order to process.
                             chlds_layer.insert(0,chl_object_num)  #append(
 
@@ -2245,8 +2251,8 @@ class Converter:
                             #Then we lose time by doing a long way to go back!
                             #Child of current piece mast be next processed. 
                             #Raise the priority of child.
-                            if prn_detail > 2: print "(   Raise the priority of children - L: {0} obj: {1} was order: {2})".format(\
-                                                layer+1,chl_object_num,chlds_layer.index(chl_object_num))
+                            if prn_detail > 2: print("(   Raise the priority of children - L: {0} obj: {1} was order: {2})".format(
+                                                layer+1,chl_object_num,chlds_layer.index(chl_object_num)))
                             chlds_layer.remove(chl_object_num)
                             chlds_layer.insert(0,chl_object_num)
                         
@@ -2269,7 +2275,7 @@ class Converter:
                 if self.is_processed(layer,cur_p,processed_obj): continue
 
                 if cur_p not in cur_adj:
-                    if prn_detail > 2: print "(   remember adjacent piece- L: {0} obj: {1})".format(layer,cur_p)
+                    if prn_detail > 2: print("(   remember adjacent piece- L: {0} obj: {1})".format(layer,cur_p))
                     cur_adj.append(cur_p)
 
             stek_objs[layer] = cur_adj
@@ -2290,8 +2296,8 @@ class Converter:
                         if self.is_processed(nlayer,chl_object_num,processed_obj):
                             #if prn_detail > -1: print "(Error() current child alredy processed!? L{0} obj{1})".format(layer,chl_object_num)
                             continue
-                        if prn_detail > 2: print "(  process remembered child - L: {0} obj: {1} order: {2})".format(\
-                                            nlayer,chl_object_num,chlds_layer.index(chl_object_num))
+                        if prn_detail > 2: print("(  process remembered child - L: {0} obj: {1} order: {2})".format(
+                                            nlayer,chl_object_num,chlds_layer.index(chl_object_num)))
                         layer = nlayer
                         object_num = chl_object_num
                         child_is_found = True
@@ -2313,8 +2319,8 @@ class Converter:
                         if self.is_processed(nlayer,chl_object_num,processed_obj):
                             #if prn_detail > -1: print "(Error() current child alredy processed!? L{0} obj{1})".format(layer,chl_object_num)
                             continue
-                        if prn_detail > 2: print "(  process remembered child of adj. - L: {0} obj: {1} order: {2} in {3})".format(\
-                                            nlayer,chl_object_num,chlds_layer.index(chl_object_num),len(chlds_layer))
+                        if prn_detail > 2: print("(  process remembered child of adj. - L: {0} obj: {1} order: {2} in {3})".format(
+                                            nlayer,chl_object_num,chlds_layer.index(chl_object_num),len(chlds_layer)))
                         layer = nlayer
                         object_num = chl_object_num
                         child_is_found = True
@@ -2335,7 +2341,7 @@ class Converter:
 
             break   #main exit from 'while'
 
-        if prn_detail > 1: print "( END of tree.)"
+        if prn_detail > 1: print("( END of tree.)")
         return processed_obj
 
 
@@ -2360,9 +2366,9 @@ class Converter:
     def mill_rows(self, convert_scan, primary):
         w1 = self.w1; h1 = self.h1;
         pixelsize = self.pixelsize; pixelstep = self.pixelstep
-        jrange = range(0, w1, pixelstep)
+        jrange = [ xa for xa in range(0, w1, pixelstep) ]
         if w1 not in jrange: jrange.append(w1)
-        irange = range(h1)
+        irange = [ xa for xa in range(h1) ]
         st = 2
 
         max_j = len(jrange)
@@ -2636,8 +2642,9 @@ class ArcEntryCut:
             conv.g.set_feed(conv.feed)
 
 def ui(im, nim, im_name):
-    import Tkinter
-    from ttk import Notebook, Combobox
+    import tkinter as Tkinter
+    from tkinter import ttk
+    from tkinter.ttk import Notebook, Combobox
     from PIL import ImageTk
     import pickle
 
@@ -2665,7 +2672,7 @@ def ui(im, nim, im_name):
     note.add(savingTab, text = "Saving")
     note.grid(row=0, column=1, sticky="nw")
 
-    ui_image = im.resize((nw,nh), Image.ANTIALIAS)
+    ui_image = im.resize((nw,nh), Image.LANCZOS)
     ui_image = ImageTk.PhotoImage(ui_image, master = imageTab)
     i = Tkinter.Label(imageTab, image=ui_image, compound="top",
         text=_("Image size: %(w)d x %(h)d pixels\n"
@@ -2764,9 +2771,9 @@ def ui(im, nim, im_name):
         if event.char in "0123456789.": return
         return "break"
         
-    validate_float    = "expr {![regexp {^-?([0-9]+(\.[0-9]*)?|\.[0-9]+|)$} %P]}"
+    validate_float    = "expr {![regexp {^-?([0-9]+(\\.[0-9]*)?|\\.[0-9]+|)$} %P]}"
     validate_int      = "expr {![regexp {^-?([0-9]+|)$} %P]}"
-    validate_posfloat = "expr {![regexp {^?([0-9]+(\.[0-9]*)?|\.[0-9]+|)$} %P]}"
+    validate_posfloat = "expr {![regexp {^?([0-9]+(\\.[0-9]*)?|\\.[0-9]+|)$} %P]}"
     validate_posint   = "expr {![regexp {^([0-9]+|)$} %P]}"
     def floatentry(f, v):
         var = Tkinter.DoubleVar(f)
@@ -3148,7 +3155,7 @@ def ui(im, nim, im_name):
         checkedName = "default"
         fileExtention = ".image2gcoderc"
         
-        chars = set('\/:*?"<>|')
+        chars = set('\\/:*?"<>|')
         if not(any((c in chars) for c in fileName.get())):
             checkedName = fileName.get()
             
@@ -3233,22 +3240,23 @@ def main():
     if len(sys.argv) > 1:
         im_name = sys.argv[1]
     else:
-        import tkFileDialog, Tkinter
+        import tkinter as Tkinter
+        import tkinter.filedialog as tkFileDialog
         im_name = tkFileDialog.askopenfilename(defaultextension=".png",
             filetypes = (
                 (_("Depth images"), ".gif .png .jpg"),
                 (_("All files"), "*")))
         if not im_name: raise SystemExit
-        Tkinter._default_root.destroy()
-        Tkinter._default_root = None
+        #Tkinter._default_root.destroy()
+        #Tkinter._default_root = None
     im = Image.open(im_name)
     size = im.size
     im = im.convert("L") #grayscale
     w, h = im.size
     try:
-    	nim = numarray.fromstring(im.tobytes(),'UInt8',-1).astype('Float32')
+    	nim = numarray.fromstring(im.tobytes(),'uint8',-1).astype('float32')
     except AttributeError:
-        nim = numarray.fromstring(im.tostring(),'UInt8',-1).astype('Float32')
+        nim = numarray.fromstring(im.tostring(),'uint8',-1).astype('float32')
     nim = nim.reshape(w,h)
 
     options = ui(im, nim, im_name)
@@ -3305,10 +3313,10 @@ def main():
             nim = nim - depth
 
         if printToFile:       
-            print >> originalStdout, "Start Gcoge generation"
-            print >> originalStdout, "Please wait..."
+            print("Start Gcoge generation",file=originalStdout)
+            print("Please wait...",file=originalStdout)
 			
-        if prn_detail > 0: print "(Image max= {0} min={1})".format(nim.max(),nim.min())
+        if prn_detail > 0: print("(Image max= {0} min={1})".format(nim.max(),nim.min()))
 
         rows = options['pattern'] != 1 and options['pattern'] != 5
         columns = options['pattern'] != 0 and options['pattern'] != 4
@@ -3351,9 +3359,9 @@ def main():
 
     if printToFile:
         sys.stdout = originalStdout
-        print "Gcode generation completed!"
-        print "File name:", finalFileName
-        raw_input('Press "Enter" to exit')
+        print("Gcode generation completed!")
+        print("File name:", finalFileName)
+        input('Press "Enter" to exit')
 	
 if __name__ == '__main__' and not(importingError):
     main()
