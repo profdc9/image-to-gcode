@@ -2442,8 +2442,8 @@ class Converter:
     def mill_cols(self, convert_scan, primary):
         w1 = self.w1; h1 = self.h1;
         pixelsize = self.pixelsize; pixelstep = self.pixelstep
-        jrange = range(0, h1, pixelstep)
-        irange = range(w1)
+        jrange = [ xa for xa in range(0, h1, pixelstep) ]
+        irange = [ xa for xa in range(w1) ]
         if h1 not in jrange: jrange.append(h1)
         jrange.reverse()
         st = 0
