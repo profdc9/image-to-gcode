@@ -3254,10 +3254,11 @@ def main():
     im = im.convert("L") #grayscale
     w, h = im.size
     try:
-    	nim = numarray.fromstring(im.tobytes(),'uint8',-1).astype('float32')
+    	nim = numarray.frombuffer(im.tobytes(),'uint8',-1).astype('float32')
     except AttributeError:
-        nim = numarray.fromstring(im.tostring(),'uint8',-1).astype('float32')
-    nim = nim.reshape(w,h)
+        nim = numarray.frombuffer(im.tostring(),'uint8',-1).astype('float32')
+    nim = nim.reshape(h,w)
+    nim = numarray.flip(numarray.transpose(nim),axis=0)
 
     options = ui(im, nim, im_name)
 
