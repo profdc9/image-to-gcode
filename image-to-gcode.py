@@ -1411,7 +1411,7 @@ class Converter:
         Last_border = False
         ld = len(mas_obj_filter)
         gk_rows = mas_obj_filter.keys()
-        gk_rows.sort()  #this importent! Don't remove!
+        gk_rows = sorted(gk_rows)  #this importent! Don't remove!
 
         Prev_line = -1
         st = 1
@@ -1730,7 +1730,7 @@ class Converter:
 
     def objects_relate_to(self,obj_rt,rw,first, last):
         mas_rows = obj_rt.keys()   #[59, 60, 61]
-        mas_rows.sort()
+        mas_rows = sorted(mas_rows)
         if self.BinSearchVirt(mas_rows, rw):
             Cur_f, Cur_l = obj_rt[rw]
             if (first <= Cur_f <= last) or (Cur_f <= first <= Cur_l):
@@ -1868,7 +1868,7 @@ class Converter:
         #**********************************************************************************
         #Step 1 - make filter all image
         mas_obj_filter = {}
-        jrange = range(0, max_line, self.pixelstep)
+        jrange = [ xa for xa in range(0, max_line, self.pixelstep) ] 
         if max_line not in jrange: jrange.append(max_line)
         if not self.row_mill: jrange.reverse()  #for cols'''
         for row in jrange:
@@ -2016,7 +2016,7 @@ class Converter:
         if prn_detail > 0: print("(End sorting all trees at {0})".format(datetime.datetime.now()))
 
         #Step 6 - make GK        
-        sorted_tree = sorted(processed_obj.items(), key=lambda k, v: v)
+        sorted_tree = sorted(processed_obj.items(), key=lambda v: v)
         #print sorted_tree
         for (layer,object_num),npp in sorted_tree:
             self.layer_depth_prev = self.layer_depth    #'layer_depth_prev' need for 'optimize_path'
@@ -2041,7 +2041,7 @@ class Converter:
                     except:
                         mass.append((layer,object_num))
                         if self.layer_by_layer: max_l = layer
-            layer_last,object_num_last = sorted(processed_obj.items(), key=lambda k, v: v)[-1][0]        
+            layer_last,object_num_last = sorted(processed_obj.items(), key=lambda v: v)[-1][0]        
             layer,object_num = self.get_nearest_obj(-1,-1,layer_last,object_num_last,mas_pieces,mass)
 
             
